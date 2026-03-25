@@ -1,0 +1,75 @@
+
+services:
+  db:
+    image: mysql:5.7
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    container_name: mysqldb
+    environment:
+      - MYSQL_ROOT_USERNAME=root
+      - MYSQL_ROOT_PASSWORD=my-password
+      - MYSQL_DATABASE=inventoryiq_db
+    networks:
+      - laravel-mysql-network
+
+  inventoryiq-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: inventoryiq-be-docker:latest
+    container_name: inventoryiq-be-container
+    # Live code: host ./server is used; vendor/node_modules stay in named volumes (from image on first create).
+    volumes:
+      - ./server:/usr/src/app
+      - inventoryiq_server_vendor:/usr/src/app/vendor
+      - inventoryiq_server_node_modules:/usr/src/app/node_modules
+    restart: unless-stopped
+    ports:
+       - "8000:8000"
+    depends_on:
+       - db
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: app
+      DB_DATABASE: inventoryiq_db
+      DB_PASSWORD: my-password
+      DB_USER: my-user
+      DB_HOST: mysqldb
+      DB_PORT: 3306
+    networks:
+       - laravel-mysql-network
+
+  inventoryiq-frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: inventoryiq-fe-docker:latest
+    container_name: inventoryiq-fe-container
+    # Dev server: edits on host apply without rebuilding the image (important on Windows + Docker).
+    volumes:
+      - ./client:/usr/src/app
+      - inventoryiq_client_node_modules:/usr/src/app/node_modules
+    environment:
+      - HOST=0.0.0.0
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - BROWSER=none
+    stdin_open: true
+    tty: true
+    command: ["npm", "start"]
+    restart: unless-stopped
+    ports:
+     - "3000:3000"
+    depends_on:
+      - inventoryiq-backend
+    networks:
+       - laravel-mysql-network
+
+volumes:
+  inventoryiq_server_vendor:
+  inventoryiq_server_node_modules:
+  inventoryiq_client_node_modules:
+
+networks:
+  laravel-mysql-network:
+    driver: bridge
