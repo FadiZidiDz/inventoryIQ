@@ -11,24 +11,31 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // STEP 1: Drop the old foreign key constraints first
         Schema::table('products', function (Blueprint $table) {
-            // Drop foreign keys first to allow type/nullability changes
             $table->dropForeign(['category_id']);
             $table->dropForeign(['warehouse_id']);
         });
 
+        // STEP 2: Change the column types and nullability
         Schema::table('products', function (Blueprint $table) {
-            // Use Laravel's change() method. It works for both MySQL and Postgres.
             $table->string('image', 255)->nullable()->change();
-            $table->char('category_id', 36)->nullable()->change();
-            $table->char('warehouse_id', 36)->nullable()->change();
+            
+            // Using uuid() here is MANDATORY for PostgreSQL to match the parent 'id'
+            $table->uuid('category_id')->nullable()->change();
+            $table->uuid('warehouse_id')->nullable()->change();
+        });
 
-            // Re-add foreign keys with nullable behavior
+        // STEP 3: Re-add the foreign keys with the new 'on delete set null' behavior
+        Schema::table('products', function (Blueprint $table) {
             $table->foreign('category_id')->references('id')->on('category')->nullOnDelete();
             $table->foreign('warehouse_id')->references('id')->on('warehouse')->nullOnDelete();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table) {
@@ -37,10 +44,9 @@ return new class extends Migration
         });
 
         Schema::table('products', function (Blueprint $table) {
-            // Revert to NOT NULL
             $table->string('image', 255)->nullable(false)->change();
-            $table->char('category_id', 36)->nullable(false)->change();
-            $table->char('warehouse_id', 36)->nullable(false)->change();
+            $table->uuid('category_id')->nullable(false)->change();
+            $table->uuid('warehouse_id')->nullable(false)->change();
 
             $table->foreign('category_id')->references('id')->on('category');
             $table->foreign('warehouse_id')->references('id')->on('warehouse');
