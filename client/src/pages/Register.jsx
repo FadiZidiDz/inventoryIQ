@@ -4,8 +4,10 @@ import { CloseRounded, GroupAddOutlined } from '@mui/icons-material';
 import { axios_get_header, axios_post } from "../utils/requests";
 import * as EmailValidator from 'email-validator';
 import AppbarComponent from "../components/elements/AppbarComponent";
+import Cookies from "js-cookie";
 import { AES, enc } from "crypto-js";
 import { SECRET_KEY } from "utils/auth";
+import { checkAuth } from "utils/services";
 
 function Register() {
     document.title = 'InventoryIQ: Sign Up';
@@ -36,19 +38,22 @@ function Register() {
     });
 
     useEffect(() => {
-        const access_token = localStorage.getItem('access_token');
-        // check if access token is not empty and a valid one.
-        if (access_token !== null && access_token !== undefined) {
-            axios_get_header('/checkAuth', AES.decrypt(access_token, SECRET_KEY).toString(enc.Utf8))
-            .then(response => {
-                console.log(response);
-                window.location = "/main/page";
-            })
-            .catch(error => {
-                console.log(error);
-                localStorage.clear();
-                window.location = "/";
-            });
+        const access_token = Cookies.get('access_token');
+        if (!access_token) return;
+        try {
+            const decrypted = AES.decrypt(access_token, SECRET_KEY).toString(enc.Utf8);
+            axios_get_header(checkAuth, decrypted)
+                .then(() => {
+                    window.location = "/main/page";
+                })
+                .catch(() => {
+                    localStorage.clear();
+                    Cookies.remove('access_token', { path: '/' });
+                    window.location = "/";
+                });
+        } catch {
+            localStorage.clear();
+            Cookies.remove('access_token', { path: '/' });
         }
     }, []);
 
