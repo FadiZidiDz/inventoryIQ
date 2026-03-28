@@ -1,4 +1,4 @@
-const base_api = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+const base_api = process.env.REACT_APP_API_BASE_URL || '/api';
 const ml_api   = process.env.REACT_APP_ML_API_URL || 'http://localhost:5001';
 const api = {
     // unauthenticated services

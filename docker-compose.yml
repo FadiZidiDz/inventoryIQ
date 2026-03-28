@@ -31,6 +31,7 @@ services:
     environment:
       APP_ENV: local
       CONTAINER_ROLE: app
+      PORT: "8000"
       DB_DATABASE: inventoryiq_db
       DB_PASSWORD: my-password
       DB_USER: my-user
@@ -43,20 +44,14 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        # Browser-visible API (host machine); Render uses build-time args with https://your-api.onrender.com/api
+        REACT_APP_API_BASE_URL: http://localhost:8000/api
+        REACT_APP_API_BASE_IMG_URL: http://localhost:8000
     image: inventoryiq-fe-docker:latest
-    container_name: inventoryiq-fe-container
-    # Dev server: edits on host apply without rebuilding the image (important on Windows + Docker).
-    volumes:
-      - ./client:/usr/src/app
-      - inventoryiq_client_node_modules:/usr/src/app/node_modules
     environment:
-      - HOST=0.0.0.0
-      - WATCHPACK_POLLING=true
-      - CHOKIDAR_USEPOLLING=true
-      - BROWSER=none
-    stdin_open: true
-    tty: true
-    command: ["npm", "start"]
+      - PORT=3000
+    container_name: inventoryiq-fe-container
     restart: unless-stopped
     ports:
      - "3000:3000"
@@ -68,7 +63,6 @@ services:
 volumes:
   inventoryiq_server_vendor:
   inventoryiq_server_node_modules:
-  inventoryiq_client_node_modules:
 
 networks:
   laravel-mysql-network:

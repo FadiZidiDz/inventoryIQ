@@ -112,6 +112,8 @@ function Login() {
             } else {
                 if (!nullCheck(error?.response?.data?.message)) {
                     toast.info(error.response.data.message);
+                } else {
+                    toast.error('Cannot reach server. Check API URL/network and try again.');
                 }
             }
         });
@@ -134,7 +136,7 @@ function Login() {
                     alignItems="center"
                 >
                     <Grid item lg={12} xs={12} sm={8} xl={12}>
-                        <img src={process.env.REACT_APP_URL + '/logoV2/logo-transparent.png'} style={{ height: '200px' }} alt="Logo" />
+                        <img src="/logoV2/logo-transparent.png" style={{ height: '200px' }} alt="Logo" />
                         <Typography variant="h5" justifyContent="center" alignItems="center" sx={{ fontWeight: 'bold' }}>Web Inventory Management App</Typography>
                     </Grid>
                 </Grid>

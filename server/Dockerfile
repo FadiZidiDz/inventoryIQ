@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor \
         sudo \
         nano \
-        gnupg
+        gnupg \
+        libpq-dev
 
 # Install Node.js and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
@@ -33,8 +34,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql
+# Install PHP extensions (MySQL for local compose; PostgreSQL for Render, etc.)
+RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql
 
 # Install Composer
 RUN wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && chmod +x /usr/local/bin/composer
@@ -51,8 +52,10 @@ RUN composer dump-autoload
 RUN npm install
 RUN npm run build
 
-# expose the port that is going to use by the backend
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8000
 
-# Command to run the React app in build mode (for production)
-CMD ["php", "artisan", "serve", "--host=0.0.0.0"]
+ENV PORT=8000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

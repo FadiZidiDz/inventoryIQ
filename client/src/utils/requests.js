@@ -1,7 +1,30 @@
 import axios from 'axios';
 
+const buildFallbackApiUrl = (url) => {
+    if (typeof url !== 'string' || !url.startsWith('/api/')) return null;
+    const host =
+        typeof window !== 'undefined' && window.location?.hostname
+            ? window.location.hostname
+            : null;
+    if (!host) return null;
+    return `http://${host}:8000${url}`;
+};
+
+const requestWithFallback = async (config) => {
+    try {
+        return await axios(config);
+    } catch (error) {
+        const fallbackUrl = buildFallbackApiUrl(config.url);
+        // Retry only when request failed at network layer (no HTTP response)
+        if (!error?.response && fallbackUrl && fallbackUrl !== config.url) {
+            return axios({ ...config, url: fallbackUrl });
+        }
+        throw error;
+    }
+};
+
 export const axios_post = (url, payload) => {
-    return axios({
+    return requestWithFallback({
         method: "POST",
         url: url,
         data: payload
@@ -20,7 +43,7 @@ export const axios_post_header = (url, payload, token) => {
 }
 
 export const axios_get_header = (url, token) => {
-    return axios({
+    return requestWithFallback({
         headers: { Authorization: "Bearer " + token },
         method: "GET",
         url: url
