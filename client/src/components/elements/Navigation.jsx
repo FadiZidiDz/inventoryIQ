@@ -20,14 +20,13 @@ import { Box, Tooltip, useMediaQuery } from '@mui/material';
 import { Link } from 'react-router-dom';
 import MaterialUISwitch from './ThemeSwitch';
 import axios from 'axios';
-import { AES, enc } from 'crypto-js';
 import { axios_get_header } from 'utils/requests';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
 import { closeDrawer, openDrawer } from 'store/components/drawer/actions';
 import Cookies from 'js-cookie';
 import { get_Navs, logOut } from 'utils/services';
-import { SECRET_KEY } from 'utils/auth';
+import { tryDecryptCookie } from 'utils/auth';
 
 const drawerWidth = 280;
 
@@ -118,14 +117,7 @@ export default function Navigation() {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [navigation, setNavigation] = React.useState([]);
   const access_token = Cookies.get('access_token');
-  let decrypted_access_token;
-
-  if (access_token !== null && access_token !== undefined) {
-    decrypted_access_token = AES.decrypt(access_token, SECRET_KEY).toString(enc.Utf8);
-  } else {
-    localStorage.clear();
-    navigate("/");
-  }
+  const decrypted_access_token = access_token ? tryDecryptCookie(access_token) : null;
 
   const handleDrawerOpen = () => {
     dispatch(openDrawer());
@@ -138,8 +130,14 @@ export default function Navigation() {
   };
 
   const logout = () => {
+    const bearer = tryDecryptCookie(Cookies.get('access_token') || '');
+    if (!bearer) {
+      localStorage.clear();
+      navigate("/");
+      return;
+    }
     axios({
-      headers: { Authorization: 'Bearer ' + decrypted_access_token },
+      headers: { Authorization: 'Bearer ' + bearer },
       method: "POST",
       url: logOut
     })
@@ -166,32 +164,43 @@ export default function Navigation() {
     });
   }
 
-  const get_navigations = () => {
+  const get_navigations = React.useCallback(() => {
+    const token = tryDecryptCookie(Cookies.get('access_token') || '');
+    if (!token) return;
     const role_id = Cookies.get('role_id');
     const auth_id = Cookies.get('auth_id');
-    if (role_id !== undefined) {
-      if (role_id !== null) {
-        const decrypted_role_id = AES.decrypt(role_id, SECRET_KEY).toString(enc.Utf8);
-        const decrypted_auth_id = AES.decrypt(auth_id, SECRET_KEY).toString(enc.Utf8);
-  
-        axios_get_header(get_Navs + decrypted_role_id + '/' + decrypted_auth_id, decrypted_access_token)
-        .then(response => { setNavigation(response.data.navigations); })
-        .catch(error => { console.error("Error: ", error); })
-      } else {
-        localStorage.clear();
-        navigate("/");
-      }
-    }
-  }
+    if (!role_id || !auth_id) return;
+    const decrypted_role_id = tryDecryptCookie(role_id);
+    const decrypted_auth_id = tryDecryptCookie(auth_id);
+    if (!decrypted_role_id || !decrypted_auth_id) return;
+
+    axios_get_header(get_Navs + decrypted_role_id + '/' + decrypted_auth_id, token)
+      .then((response) => {
+        setNavigation(response.data.navigations);
+      })
+      .catch((error) => {
+        console.error("Error: ", error);
+      });
+  }, []);
 
   /* eslint-disable */
   React.useEffect(() => {
+    if (!decrypted_access_token) {
+      if (access_token) {
+        ['access_token', 'email_token', 'auth_id', 'role_id', 'role_name', 'isLoggedIn'].forEach((n) =>
+          Cookies.remove(n, { path: '/' })
+        );
+      }
+      localStorage.clear();
+      navigate("/");
+      return;
+    }
     get_navigations();
     const storedIndex = localStorage.getItem('selectedIndex');
     if (storedIndex !== null) {
       setSelectedIndex(parseInt(storedIndex));
     }
-  }, []);
+  }, [access_token, decrypted_access_token, navigate, get_navigations]);
   /* eslint-disable */
 
   const handleListItemSelected = (event, index) => {
