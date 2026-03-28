@@ -23,8 +23,9 @@ return [
 
     // Replace the * with your specific React URL for better security
     'allowed_origins' => [
-        'https://inventoryiq-1.onrender.com', 
-        'http://localhost:5173' // This allows you to still test locally
+        'https://inventoryiq-1-sh6j.onrender.com', 
+        'http://localhost:5173',// This allows you to still test locally
+        'http://localhost:3000',
     ],
 
     'allowed_origins_patterns' => [],
