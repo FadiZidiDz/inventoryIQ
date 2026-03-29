@@ -2,9 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +14,11 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ensure initial admin user exists (idempotent)
+        // 1. Ensure the Roles exist first (important for empty databases)
+        $role_admin = Role::firstOrCreate(['role_name' => 'Administrator']);
+        $role_staff = Role::firstOrCreate(['role_name' => 'Staff']);
+
+        // 2. Ensure initial admin user exists
         $admin = User::updateOrCreate(
             ['email' => 'test@test.com'],
             [
@@ -25,12 +27,12 @@ class UserSeeder extends Seeder
             ]
         );
 
-        $role_admin = Role::where('role_name', 'Administrator')->first();
-        if ($role_admin && !$admin->roles()->where('roles.id', $role_admin->id)->exists()) {
+        // 3. Attach Administrator Role if not already attached
+        if (!$admin->roles()->where('roles.id', $role_admin->id)->exists()) {
             $admin->roles()->attach($role_admin->id);
         }
 
-        // Ensure a default staff user exists (idempotent)
+        // 4. Ensure a default staff user exists
         $staff = User::updateOrCreate(
             ['email' => 'staff1@test.com'],
             [
@@ -39,8 +41,8 @@ class UserSeeder extends Seeder
             ]
         );
 
-        $role_staff = Role::where('role_name', 'Staff')->first();
-        if ($role_staff && !$staff->roles()->where('roles.id', $role_staff->id)->exists()) {
+        // 5. Attach Staff Role if not already attached
+        if (!$staff->roles()->where('roles.id', $role_staff->id)->exists()) {
             $staff->roles()->attach($role_staff->id);
         }
     }
