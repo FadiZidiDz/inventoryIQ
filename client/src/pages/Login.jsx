@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import Cookies from 'js-cookie';
 import { login, checkAuth } from 'utils/services';
 import { nullCheck } from "utils/helper";
-import { SECRET_KEY, decryptedRoleName } from "utils/auth";
+import { SECRET_KEY, decryptedRoleName, decryptAccessToken } from "utils/auth";
 
 function Login() {
     document.title = 'InventoryIQ: Log In';
@@ -31,26 +31,21 @@ function Login() {
     });
 
     useEffect(() => {
-        const access_token = Cookies.get('access_token');
+        // Use the improved helper that checks both Cookies and LocalStorage
+        const access_token = decryptAccessToken();
         if (!nullCheck(access_token)) {
-            try {
-                const decryptedToken = AES.decrypt(access_token, SECRET_KEY).toString(enc.Utf8);
-                axios_get_header(checkAuth, decryptedToken)
-                .then(() => {
-                    const dest = decryptedRoleName() === "Administrator"
-                        ? "/main/page/dashboard"
-                        : "/main/page/inventory/products-list";
-                    navigate(dest);
-                })
-                .catch(error => {
-                    console.log(error);
-                    localStorage.clear();
-                    navigate("/");
-                });
-            } catch (e) {
+            axios_get_header(checkAuth, access_token)
+            .then(() => {
+                const dest = decryptedRoleName() === "Administrator"
+                    ? "/main/page/dashboard"
+                    : "/main/page/inventory/products-list";
+                navigate(dest);
+            })
+            .catch(error => {
+                console.log(error);
                 localStorage.clear();
                 navigate("/");
-            }
+            });
         }
     }, [navigate]);
 
@@ -89,21 +84,32 @@ function Login() {
             const futureTimestamp = now + expirationTime;
             const threeHrsFraction = 3 / 24;
 
+            const userRole = data.user.roles[0];
+            const cookieConfig = { expires: threeHrsFraction, sameSite: 'none', secure: true };
+
+            // ENCRYPT DATA
+            const encryptedToken = AES.encrypt(data.access_token, SECRET_KEY).toString();
+            const encryptedEmail = AES.encrypt(data.user.email, SECRET_KEY).toString();
+            const encryptedAuthId = AES.encrypt(data.user.id.toString(), SECRET_KEY).toString();
+            const encryptedRoleId = AES.encrypt(userRole.id.toString(), SECRET_KEY).toString();
+            const encryptedRoleName = AES.encrypt(userRole.role_name, SECRET_KEY).toString();
+
+            /* for local Storage - BACKUP (This fixes the empty sidebar) */
             localStorage.setItem('expire_at', futureTimestamp);
             localStorage.setItem('previousIndex', 1);
             localStorage.setItem('selectedIndex', 1);
+            localStorage.setItem('access_token', encryptedToken);
+            localStorage.setItem('role_name', encryptedRoleName);
+            localStorage.setItem('role_id', encryptedRoleId);
+            localStorage.setItem('auth_id', encryptedAuthId);
 
-            const userRole = data.user.roles[0];
-
-            // CRITICAL FIX: sameSite: 'none' and secure: true allows the browser to read cookies across Render subdomains
-            const cookieConfig = { expires: threeHrsFraction, sameSite: 'none', secure: true };
-
+            /* for cookie */
             Cookies.set('isLoggedIn', 1, cookieConfig);
-            Cookies.set('access_token', AES.encrypt(data.access_token, SECRET_KEY).toString(), cookieConfig);
-            Cookies.set('email_token', AES.encrypt(data.user.email, SECRET_KEY).toString(), cookieConfig);
-            Cookies.set('auth_id', AES.encrypt(data.user.id, SECRET_KEY).toString(), cookieConfig);
-            Cookies.set('role_id', AES.encrypt(userRole.id.toString(), SECRET_KEY).toString(), cookieConfig);
-            Cookies.set('role_name', AES.encrypt(userRole.role_name, SECRET_KEY).toString(), cookieConfig);
+            Cookies.set('access_token', encryptedToken, cookieConfig);
+            Cookies.set('email_token', encryptedEmail, cookieConfig);
+            Cookies.set('auth_id', encryptedAuthId, cookieConfig);
+            Cookies.set('role_id', encryptedRoleId, cookieConfig);
+            Cookies.set('role_name', encryptedRoleName, cookieConfig);
             
             setTimeout(() => {
                 setLoading(false);
