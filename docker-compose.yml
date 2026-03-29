@@ -1,16 +1,14 @@
-
 services:
   db:
-    image: mysql:5.7
+    image: postgres:15-alpine # Changed to Postgres to match Render
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
-    container_name: mysqldb
+    container_name: postgresdb
     environment:
-      - MYSQL_ROOT_USERNAME=root
-      - MYSQL_ROOT_PASSWORD=my-password
-      - MYSQL_DATABASE=inventoryiq_db
+      - POSTGRES_USER=inventoryiq_db_user
+      - POSTGRES_PASSWORD=YtPI4Ryfn8Mp20WvbFRZnP08LiQ2kVwA
+      - POSTGRES_DB=inventoryiq_db
     networks:
-      - laravel-mysql-network
+      - inventoryiq-network
 
   inventoryiq-backend:
     build:
@@ -18,7 +16,6 @@ services:
       dockerfile: Dockerfile
     image: inventoryiq-be-docker:latest
     container_name: inventoryiq-be-container
-    # Live code: host ./server is used; vendor/node_modules stay in named volumes (from image on first create).
     volumes:
       - ./server:/usr/src/app
       - inventoryiq_server_vendor:/usr/src/app/vendor
@@ -30,24 +27,25 @@ services:
        - db
     environment:
       APP_ENV: local
-      CONTAINER_ROLE: app
-      PORT: "8000"
+      APP_KEY: "base64:g8zY2JqWjg7BOhurFZmg9v22GAKth7qJ4uJC0ACv/dU="
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
       DB_DATABASE: inventoryiq_db
-      DB_PASSWORD: my-password
-      DB_USER: my-user
-      DB_HOST: mysqldb
-      DB_PORT: 3306
+      DB_USERNAME: inventoryiq_db_user
+      DB_PASSWORD: YtPI4Ryfn8Mp20WvbFRZnP08LiQ2kVwA
     networks:
-       - laravel-mysql-network
+       - inventoryiq-network
 
   inventoryiq-frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
       args:
-        # Browser-visible API (host machine); Render uses build-time args with https://your-api.onrender.com/api
+        # IMPORTANT: For Render, change these in the Dashboard to your .onrender.com URLs
         REACT_APP_API_BASE_URL: http://localhost:8000/api
         REACT_APP_API_BASE_IMG_URL: http://localhost:8000
+        REACT_APP_SECRET_KEY: "your-random-secret-key-here"
     image: inventoryiq-fe-docker:latest
     environment:
       - PORT=3000
@@ -58,12 +56,12 @@ services:
     depends_on:
       - inventoryiq-backend
     networks:
-       - laravel-mysql-network
+       - inventoryiq-network
 
 volumes:
   inventoryiq_server_vendor:
   inventoryiq_server_node_modules:
 
 networks:
-  laravel-mysql-network:
+  inventoryiq-network:
     driver: bridge
