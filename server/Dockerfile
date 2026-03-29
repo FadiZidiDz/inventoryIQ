@@ -1,16 +1,22 @@
 # Use a php8.2 image
-FROM php:8.2
+FROM php:8.2-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git curl zip unzip libpq-dev libpng-dev libzip-dev \
-        && apt-get clean && rm -rf /var/lib/apt/lists/*
+        git \
+        curl \
+        zip \
+        unzip \
+        libpq-dev \
+        libpng-dev \
+        libzip-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions (including PostgreSQL for Render)
+# Install PHP extensions
 RUN docker-php-ext-install pdo pdo_pgsql
 
-# Install Composer
-RUN curl -sS https://getcomposer.org | php -- --install-dir=/usr/local/bin --filename=composer
+# BETTER WAY TO INSTALL COMPOSER: Copy it from the official image
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set the working directory
 WORKDIR /usr/src/app
@@ -19,7 +25,8 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Install Laravel dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Use --ignore-platform-reqs if you have extensions in composer.json not in this dockerfile
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Setup the entrypoint script
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
