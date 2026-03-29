@@ -14,34 +14,21 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        // insert initial and default roles
-        $role_data = [
-            [
-                'id' => Str::uuid(),
-                'role_name' => 'Administrator',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id' => Str::uuid(),
-                'role_name' => 'Staff Manager',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id' => Str::uuid(),
-                'role_name' => 'Staff',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'id' => Str::uuid(),
-                'role_name' => 'Developer',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        ];
+        $roleNames = ['Administrator', 'Staff Manager', 'Staff', 'Developer'];
 
-        Role::insert($role_data);
+        foreach ($roleNames as $roleName) {
+            // withTrashed() ensures we find soft-deleted records too,
+            // preventing unique constraint violations on re-seed.
+            $existing = Role::withTrashed()->where('role_name', $roleName)->first();
+
+            if (!$existing) {
+                Role::create(['role_name' => $roleName]);
+            } elseif ($existing->trashed()) {
+                $existing->restore();
+            }
+            // else: already exists and active — nothing to do
+        }
+
+        $this->command->info('RoleSeeder: done.');
     }
 }
