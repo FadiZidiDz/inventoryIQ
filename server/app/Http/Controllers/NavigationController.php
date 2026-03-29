@@ -9,10 +9,8 @@ use Illuminate\Support\Facades\Cache;
 
 class NavigationController extends Controller
 {
-    /**
-     * Only these 5 navigation items are shown in the sidebar.
-     * Change this list to add/remove items without touching the database.
-     */
+    // Only these 5 items show in the sidebar.
+    // Add/remove URLs here to control the menu without touching the DB.
     private const ALLOWED_NAV = [
         'dashboard',    // Dashboard
         'inventory',    // Inventory
@@ -34,7 +32,6 @@ class NavigationController extends Controller
                 ->get();
         });
 
-        # track navigation view
         if (auth()->check()) {
             AuditTrail::create([
                 'user_id' => auth()->user()->id,
