@@ -10,24 +10,15 @@ use Illuminate\Support\Facades\Cache;
 class NavigationController extends Controller
 {
     public function get_navigations($role_id, $user_id) {
-        $cacheKey = 'navigations_v2_simple_' . $role_id . '_' . $user_id;
-        $cacheTags = [$role_id . '_' . $user_id];
+        $cacheKey = 'navigations_v3_' . $role_id . '_' . $user_id;
         $minutes = 180;
-    
-        // Attempt to retrieve the data from the cache
-        $allowedUrls = ['dashboard', 'inventory', 'users', 'profile', 'audit-trails'];
-        $orderMap = array_flip($allowedUrls);
 
-        $navigations = Cache::remember($cacheKey, $minutes, function () use ($role_id, $allowedUrls, $orderMap) {
-            return Navigation::whereIn('navigation_url', $allowedUrls)
-                ->whereHas('roles', function ($query) use ($role_id) {
+        $navigations = Cache::remember($cacheKey, $minutes, function () use ($role_id) {
+            return Navigation::whereHas('roles', function ($query) use ($role_id) {
                     $query->where('role_id', $role_id);
                 })
-                ->get()
-                ->sortBy(function ($nav) use ($orderMap) {
-                    return $orderMap[$nav->navigation_url] ?? 99;
-                })
-                ->values();
+                ->orderBy('order')
+                ->get();
         });
 
         # track navigation view
