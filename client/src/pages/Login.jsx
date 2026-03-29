@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import Cookies from 'js-cookie';
 import { login, checkAuth } from 'utils/services';
 import { nullCheck } from "utils/helper";
-import { SECRET_KEY, decryptedRoleName, decryptAccessToken } from "utils/auth";
+import { SECRET_KEY, decryptedRoleName } from "utils/auth";
 
 function Login() {
     document.title = 'InventoryIQ: Log In';
@@ -31,10 +31,10 @@ function Login() {
     });
 
     useEffect(() => {
-        // Use the improved helper that checks both Cookies and LocalStorage
-        const access_token = decryptAccessToken();
+        const access_token = Cookies.get('access_token');
+        // check if access token is not empty and a valid one.
         if (!nullCheck(access_token)) {
-            axios_get_header(checkAuth, access_token)
+            axios_get_header(checkAuth, AES.decrypt(access_token, SECRET_KEY).toString(enc.Utf8))
             .then(() => {
                 const dest = decryptedRoleName() === "Administrator"
                     ? "/main/page/dashboard"
@@ -64,56 +64,41 @@ function Login() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
         setLoading(true);
 
         axios_post(login, formData)
         .then(response => {
             const data = response.data;
-
-            if (!data.user.roles || data.user.roles.length === 0) {
-                setLoading(false);
-                toast.error("Account Error: No role assigned to this user.");
-                return;
-            }
-
             toast.success(data.message);
 
-            const expirationMinutes = response.data.expire_at || 180;
+            /* for localStorage */
+            const expirationMinutes = response.data.expire_at;
             const expirationTime = expirationMinutes * 60000;
+
+            // Calculate the future timestamp by adding expirationTime to the current time
             const now = new Date().getTime();
             const futureTimestamp = now + expirationTime;
             const threeHrsFraction = 3 / 24;
 
-            const userRole = data.user.roles[0];
-            const cookieConfig = { expires: threeHrsFraction, sameSite: 'none', secure: true };
-
-            // ENCRYPT DATA
-            const encryptedToken = AES.encrypt(data.access_token, SECRET_KEY).toString();
-            const encryptedEmail = AES.encrypt(data.user.email, SECRET_KEY).toString();
-            const encryptedAuthId = AES.encrypt(data.user.id.toString(), SECRET_KEY).toString();
-            const encryptedRoleId = AES.encrypt(userRole.id.toString(), SECRET_KEY).toString();
-            const encryptedRoleName = AES.encrypt(userRole.role_name, SECRET_KEY).toString();
-
-            /* for local Storage - BACKUP (This fixes the empty sidebar) */
+            /* for local Storage */
             localStorage.setItem('expire_at', futureTimestamp);
             localStorage.setItem('previousIndex', 1);
             localStorage.setItem('selectedIndex', 1);
-            localStorage.setItem('access_token', encryptedToken);
-            localStorage.setItem('role_name', encryptedRoleName);
-            localStorage.setItem('role_id', encryptedRoleId);
-            localStorage.setItem('auth_id', encryptedAuthId);
 
             /* for cookie */
-            Cookies.set('isLoggedIn', 1, cookieConfig);
-            Cookies.set('access_token', encryptedToken, cookieConfig);
-            Cookies.set('email_token', encryptedEmail, cookieConfig);
-            Cookies.set('auth_id', encryptedAuthId, cookieConfig);
-            Cookies.set('role_id', encryptedRoleId, cookieConfig);
-            Cookies.set('role_name', encryptedRoleName, cookieConfig);
+            const cookieOpts = { expires: threeHrsFraction, sameSite: 'None', secure: true };
+            Cookies.set('isLoggedIn',   1,                                                          cookieOpts);
+            Cookies.set('access_token', AES.encrypt(data.access_token,             SECRET_KEY).toString(), cookieOpts);
+            Cookies.set('email_token',  AES.encrypt(data.user.email,               SECRET_KEY).toString(), cookieOpts);
+            Cookies.set('auth_id',      AES.encrypt(data.user.id,                  SECRET_KEY).toString(), cookieOpts);
+            Cookies.set('role_id',      AES.encrypt(data.user.roles[0]['id'],       SECRET_KEY).toString(), cookieOpts);
+            Cookies.set('role_name',    AES.encrypt(data.user.roles[0]['role_name'],SECRET_KEY).toString(), cookieOpts);
             
             setTimeout(() => {
                 setLoading(false);
-                const dest = userRole.role_name === "Administrator"
+                const roleName = data.user.roles[0]?.role_name;
+                const dest = roleName === "Administrator"
                     ? "/main/page/dashboard"
                     : "/main/page/inventory/products-list";
                 window.location = dest;
@@ -121,32 +106,56 @@ function Login() {
         })
         .catch(error => {
             setLoading(false);
-            console.error("Login Error:", error);
-            if (error?.response?.data?.message) {
-                toast.error(error.response.data.message);
+            if (!nullCheck(error?.response?.data?.email)) {
+                toast.error(error?.response?.data?.email[0]);
+            } else if (!nullCheck(error?.response?.data?.password)) {
+                toast.error(error?.response?.data?.password[0]);
             } else {
-                toast.error('Login failed. Please check your credentials.');
+                if (!nullCheck(error?.response?.data?.message)) {
+                    toast.info(error.response.data.message);
+                } else {
+                    toast.error('Cannot reach server. Check API URL/network and try again.');
+                }
             }
         });
     }
 
     return(
-        <Grid container direction="row" justifyContent="center" sx={{ minHeight: '100vh' }}>
+        <Grid
+            container
+            direction="row"
+            justifyContent="center"
+            sx={{ minHeight: '100vh' }}
+        >
             <AppbarComponent />
             <ToastCmp />
             <Grid item lg={5} xs={12} sm={12} xl={5} pt={{ lg: 10, xl: 15, sm: 10, xs: 10 }} sx={{ background: '#fafafa' }}>
-                <Grid container direction="column" justifyContent="center" alignItems="center">
+                <Grid
+                    container
+                    direction="column"
+                    justifyContent="center"
+                    alignItems="center"
+                >
                     <Grid item lg={12} xs={12} sm={8} xl={12}>
                         <img src="/logoV2/logo-transparent.png" style={{ height: '200px' }} alt="Logo" />
-                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Web Inventory Management App</Typography>
+                        <Typography variant="h5" justifyContent="center" alignItems="center" sx={{ fontWeight: 'bold' }}>Web Inventory Management App</Typography>
                     </Grid>
                 </Grid>
             </Grid>
-            <Grid item lg={7} xs={12} sm={12} xl={7} pt={{ lg: 20, xl: 20, sm: 5, xs: 5 }} px={{ xs: 5 }} sx={{ background: '#fefefe'}}>
-                <Grid container direction="row" justifyContent="center" alignItems="center">
+            <Grid item lg={7} xs={12} sm={12} xl={7} pt={{ lg: 40, xl: 40, sm: 5, xs: 5 }} px={{ xs: 5 }} sx={{ background: '#fefefe'}}>
+                <Grid
+                    container
+                    direction="row"
+                    justifyContent="center"
+                    alignItems="center"
+                >
                     <Grid item lg={7} xs={12} sm={8} xl={5}>
                         <Card elevation={12}>
-                            <CardHeader title="Log In" titleTypographyProps={{ variant: "h5", fontWeight: 'bold' }} sx={{ pl: 2.5 }} />
+                            <CardHeader
+                                title="Log In"
+                                titleTypographyProps={{ variant: "h5", fontWeight: 'bold' }}
+                                sx={{ pl: 2.5 }}
+                            ></CardHeader>
                             <Divider />
                             <form onSubmit={handleSubmit}>
                                 <CardContent>
@@ -157,6 +166,7 @@ function Login() {
                                                 required
                                                 name="email"
                                                 label="E-mail"
+                                                placeholder="E-mail (Required)"
                                                 variant="outlined"
                                                 type="email"
                                                 value={formData.email}
@@ -164,13 +174,15 @@ function Login() {
                                                 helperText={formDataHelperText.email}
                                                 onChange={handleChange}
                                                 fullWidth
+                                                autoComplete="username"
                                             />
                                         </Grid>
                                         <Grid item>
                                             <TextField
-                                                required
                                                 name="password"
                                                 label="Password"
+                                                required
+                                                placeholder="Password (Required)"
                                                 variant="outlined"
                                                 type="password"
                                                 value={formData.password}
@@ -180,20 +192,25 @@ function Login() {
                                                 fullWidth
                                             />
                                         </Grid>
-                                        <Grid item mt={2}>
+                                    </Grid>
+                                </CardContent>
+                                <CardActions>
+                                    <Grid container justifyContent="flex-end" sx={{ mx: 1, mb: 1 }}>
+                                        <Grid item lg={12} xl={12} sm={12} xs={12}>
                                             <LoadingButton
-                                                fullWidth
-                                                type="submit"
                                                 loading={loading}
-                                                loadingPosition="start"
-                                                startIcon={<VpnKeyRounded />}
+                                                color="success"
+                                                loadingPosition="end"
+                                                endIcon={<VpnKeyRounded />}
                                                 variant="contained"
+                                                type="submit"
+                                                fullWidth
                                             >
-                                                Log In
+                                                {loading ? 'Logging In' : 'Login'}
                                             </LoadingButton>
                                         </Grid>
                                     </Grid>
-                                </CardContent>
+                                </CardActions>
                             </form>
                         </Card>
                     </Grid>
