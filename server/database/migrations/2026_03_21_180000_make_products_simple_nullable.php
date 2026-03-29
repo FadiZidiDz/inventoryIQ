@@ -2,32 +2,37 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     /**
-     * Allow optional image / category / warehouse for simplified product form.
-     *
-     * FIX: The original migration used MySQL `MODIFY` syntax which fails on
-     * PostgreSQL (used on Render). This version uses PostgreSQL-compatible
-     * `ALTER COLUMN ... DROP NOT NULL` syntax and is safe to run on both.
+     * Update products table for PostgreSQL compatibility.
+     * Makes image, category, and warehouse optional.
      */
     public function up(): void
     {
-        // ── Step 1: Drop existing foreign key constraints (safe IF EXISTS) ───
-        DB::statement('ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_id_foreign');
-        DB::statement('ALTER TABLE products DROP CONSTRAINT IF EXISTS products_warehouse_id_foreign');
+        // 1. Drop Foreign Keys first (Postgres is strict about this)
+        Schema::table('products', function (Blueprint $table) {
+            // We use an array to tell Laravel to find the constraint name automatically
+            $table->dropForeign(['category_id']);
+            $table->dropForeign(['warehouse_id']);
+        });
 
-        // ── Step 2: Make columns nullable (PostgreSQL syntax) ─────────────────
-        // MySQL uses:  ALTER TABLE ... MODIFY col TYPE NULL
-        // PostgreSQL:  ALTER TABLE ... ALTER COLUMN col DROP NOT NULL
-        DB::statement('ALTER TABLE products ALTER COLUMN image DROP NOT NULL');
-        DB::statement('ALTER TABLE products ALTER COLUMN category_id DROP NOT NULL');
-        DB::statement('ALTER TABLE products ALTER COLUMN warehouse_id DROP NOT NULL');
+        // 2. Modify columns to be NULLABLE
+        Schema::table('products', function (Blueprint $table) {
+            $table->string('image')->nullable()->change();
+            
+            // Ensure these match the parent table ID types (usually UUIDs in your app)
+            $table->uuid('category_id')->nullable()->change();
+            $table->uuid('warehouse_id')->nullable()->change();
+            
+            // Ensure price and stocks are ready (adding them if they don't exist, otherwise change)
+            $table->decimal('price', 15, 2)->default(0)->change();
+            $table->integer('stocks')->default(0)->change();
+        });
 
-        // ── Step 3: Re-add foreign keys with nullOnDelete behaviour ───────────
+        // 3. Re-add Foreign Keys with nullOnDelete
         Schema::table('products', function (Blueprint $table) {
             $table->foreign('category_id')
                   ->references('id')->on('category')
@@ -41,17 +46,14 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Drop the nullOnDelete FKs
-        DB::statement('ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_id_foreign');
-        DB::statement('ALTER TABLE products DROP CONSTRAINT IF EXISTS products_warehouse_id_foreign');
-
-        // Restore NOT NULL
-        DB::statement('ALTER TABLE products ALTER COLUMN image SET NOT NULL');
-        DB::statement('ALTER TABLE products ALTER COLUMN category_id SET NOT NULL');
-        DB::statement('ALTER TABLE products ALTER COLUMN warehouse_id SET NOT NULL');
-
-        // Re-add strict foreign keys
         Schema::table('products', function (Blueprint $table) {
+            $table->dropForeign(['category_id']);
+            $table->dropForeign(['warehouse_id']);
+            
+            $table->string('image')->nullable(false)->change();
+            $table->uuid('category_id')->nullable(false)->change();
+            $table->uuid('warehouse_id')->nullable(false)->change();
+
             $table->foreign('category_id')->references('id')->on('category');
             $table->foreign('warehouse_id')->references('id')->on('warehouse');
         });
