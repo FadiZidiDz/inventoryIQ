@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->uuid('warehouse_id');
+            $table->uuid('warehouse_id')->nullable();  // nullable — warehouse not always assigned
 
-            $table->foreign('warehouse_id')->references('id')->on('warehouse');
+            $table->foreign('warehouse_id')->references('id')->on('warehouse')->nullOnDelete();
         });
     }
 
