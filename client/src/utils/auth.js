@@ -15,11 +15,30 @@ const clearAuthStorage = () => {
     ].forEach((name) => Cookies.remove(name, { path: '/' }));
 };
 
+/**
+ * Decrypt a single value. Checks Cookies first, then LocalStorage.
+ */
+export const tryDecryptCookie = (cookieValue, storageKey = null) => {
+    let encrypted = cookieValue;
+    
+    // If cookie is empty, check localStorage backup
+    if (!encrypted && storageKey) {
+        encrypted = localStorage.getItem(storageKey);
+    }
+
+    if (!encrypted) return null;
+    
+    try {
+        const out = AES.decrypt(encrypted, SECRET_KEY).toString(enc.Utf8);
+        return out || null;
+    } catch {
+        return null;
+    }
+};
+
 const decryptToken = (cookieToken, redirectPath, storageKey = null) => {
-    // 1. Try to get token from cookie
     let token = cookieToken;
 
-    // 2. BACKUP: If cookie is blocked/empty, try LocalStorage
     if ((!token || token === '') && storageKey) {
         token = localStorage.getItem(storageKey);
     }
@@ -45,7 +64,6 @@ const decryptToken = (cookieToken, redirectPath, storageKey = null) => {
     }
 };
 
-// Updated functions to use LocalStorage backups
 export const decryptAccessToken = () => decryptToken(Cookies.get('access_token'), '/', 'access_token');
 export const decryptAuthId = () => decryptToken(Cookies.get('auth_id'), '/', 'auth_id');
 export const decryptRoleId = () => decryptToken(Cookies.get('role_id'), '/', 'role_id');
