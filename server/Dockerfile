@@ -3,59 +3,28 @@ FROM php:8.2
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget \
-        git \
-        curl \
-        default-mysql-client \
-        libpng-dev \
-        libfreetype6-dev \
-        libjpeg62-turbo-dev \
-        build-essential \
-        libssl-dev \
-        zlib1g-dev \
-        libjpeg-dev \
-        libzip-dev \
-        libxrender-dev \
-        libfontconfig \
-        libxext-dev \
-        libsndfile1 \
-        ffmpeg \
-        zip \
-        unzip \
-        supervisor \
-        sudo \
-        nano \
-        gnupg \
-        libpq-dev
+        git curl zip unzip libpq-dev libpng-dev libzip-dev \
+        && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions (MySQL for local compose; PostgreSQL for Render, etc.)
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql
+# Install PHP extensions (including PostgreSQL for Render)
+RUN docker-php-ext-install pdo pdo_pgsql
 
 # Install Composer
-RUN wget -O /usr/local/bin/composer https://getcomposer.org/composer-stable.phar && chmod +x /usr/local/bin/composer
+RUN curl -sS https://getcomposer.org | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy the rest of the application code to the container
+# Copy application files
 COPY . .
 
-# Install dependencies
-RUN composer install
-RUN composer dump-autoload
-RUN npm install
-RUN npm run build
+# Install Laravel dependencies
+RUN composer install --no-dev --optimize-autoloader
 
+# Setup the entrypoint script
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8000
 
-ENV PORT=8000
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
