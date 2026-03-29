@@ -75,7 +75,6 @@ function Login() {
         .then(response => {
             const data = response.data;
 
-            // SAFETY CHECK: Ensure user has roles before proceeding
             if (!data.user.roles || data.user.roles.length === 0) {
                 setLoading(false);
                 toast.error("Account Error: No role assigned to this user.");
@@ -94,17 +93,17 @@ function Login() {
             localStorage.setItem('previousIndex', 1);
             localStorage.setItem('selectedIndex', 1);
 
-            // Access the first role in the array safely
             const userRole = data.user.roles[0];
 
-            Cookies.set('isLoggedIn', 1, { expires: threeHrsFraction, sameSite: 'strict' });
-            Cookies.set('access_token', AES.encrypt(data.access_token, SECRET_KEY).toString(), { expires: threeHrsFraction, sameSite: 'strict' });
-            Cookies.set('email_token', AES.encrypt(data.user.email, SECRET_KEY).toString(), { expires: threeHrsFraction, sameSite: 'strict' });
-            Cookies.set('auth_id', AES.encrypt(data.user.id, SECRET_KEY).toString(), { expires: threeHrsFraction, sameSite: 'strict' });
-            
-            // Fix: accessing role properties from the first item in the array
-            Cookies.set('role_id', AES.encrypt(userRole.id.toString(), SECRET_KEY).toString(), { expires: threeHrsFraction, sameSite: 'strict' });
-            Cookies.set('role_name', AES.encrypt(userRole.role_name, SECRET_KEY).toString(), { expires: threeHrsFraction, sameSite: 'strict' });
+            // CRITICAL FIX: sameSite: 'none' and secure: true allows the browser to read cookies across Render subdomains
+            const cookieConfig = { expires: threeHrsFraction, sameSite: 'none', secure: true };
+
+            Cookies.set('isLoggedIn', 1, cookieConfig);
+            Cookies.set('access_token', AES.encrypt(data.access_token, SECRET_KEY).toString(), cookieConfig);
+            Cookies.set('email_token', AES.encrypt(data.user.email, SECRET_KEY).toString(), cookieConfig);
+            Cookies.set('auth_id', AES.encrypt(data.user.id, SECRET_KEY).toString(), cookieConfig);
+            Cookies.set('role_id', AES.encrypt(userRole.id.toString(), SECRET_KEY).toString(), cookieConfig);
+            Cookies.set('role_name', AES.encrypt(userRole.role_name, SECRET_KEY).toString(), cookieConfig);
             
             setTimeout(() => {
                 setLoading(false);
@@ -120,7 +119,7 @@ function Login() {
             if (error?.response?.data?.message) {
                 toast.error(error.response.data.message);
             } else {
-                toast.error('Login failed. Please check your credentials or server connection.');
+                toast.error('Login failed. Please check your credentials.');
             }
         });
     }
