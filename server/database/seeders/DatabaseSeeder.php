@@ -13,20 +13,23 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            CategorySeeder::class,
-            RoleSeeder::class,
-            PrimaryIdSeeder::class,
-            SecondaryIdSeeder::class,
-            UserSeeder::class,
-            NavigationSeeder::class,
-            SubNavigationSeeder::class,
+            // ── CRITICAL: must always run first ───────────────────────────────
+            RoleSeeder::class,           // roles needed by UserSeeder + NavigationSeeder
+            UserSeeder::class,           // admin login (idempotent via updateOrCreate)
+            NavigationSeeder::class,     // sidebar (idempotent via firstOrCreate + syncWithoutDetaching)
+            SubNavigationSeeder::class,  // sub-menu items
+            CategorySeeder::class,       // product categories (idempotent)
+
+            // ── NON-CRITICAL: these may throw on re-seed but that's fine ──────
+            PrimaryIdSeeder::class,      // ID templates (unique constraint — may fail on re-seed)
+            SecondaryIdSeeder::class,    // ID templates (unique constraint — may fail on re-seed)
             EquipmentSeeder::class,
             WarehouseTypeSeeder::class,
             CustomerTypeSeeder::class,
             IndustryTypeSeeder::class,
             LeadSourceSeeder::class,
             LeadTitleSeeder::class,
-            DemoDataSeeder::class
+            DemoDataSeeder::class,
         ]);
     }
 }
