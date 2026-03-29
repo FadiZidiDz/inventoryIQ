@@ -10,17 +10,14 @@ class NavigationSeeder extends Seeder
 {
     public function run(): void
     {
-        // ── Step 1: Upsert nav items keyed by navigation_url (stable, unique) ──────
+        // Only the 5 navigation items this app exposes in the sidebar.
+        // Must stay in sync with NavigationController::ALLOWED_NAV.
         $navItems = [
-            ['navigation_name' => 'Dashboard',      'navigation_url' => 'dashboard',      'navigation_icon' => 'DashboardOutlined',    'order' => 1],
-            ['navigation_name' => 'Inventory',       'navigation_url' => 'inventory',      'navigation_icon' => 'LayersOutlined',        'order' => 2],
-            ['navigation_name' => 'Logistics',       'navigation_url' => 'delivery',       'navigation_icon' => 'LocalShippingOutlined', 'order' => 3],
-            ['navigation_name' => 'Sales Leads',     'navigation_url' => 'leads',          'navigation_icon' => 'Diversity3Outlined',    'order' => 4],
-            ['navigation_name' => 'Members',         'navigation_url' => 'users',          'navigation_icon' => 'Groups2Outlined',       'order' => 5],
-            ['navigation_name' => 'Profile',         'navigation_url' => 'profile',        'navigation_icon' => 'Person2Outlined',       'order' => 6],
-            ['navigation_name' => 'Analytics',       'navigation_url' => 'reports',        'navigation_icon' => 'AnalyticsOutlined',     'order' => 7],
-            ['navigation_name' => 'System Logs',     'navigation_url' => 'audit-trails',   'navigation_icon' => 'DevicesOutlined',       'order' => 8],
-            ['navigation_name' => 'System Settings', 'navigation_url' => 'configurations', 'navigation_icon' => 'SettingsOutlined',      'order' => 9],
+            ['navigation_name' => 'Dashboard',  'navigation_url' => 'dashboard',    'navigation_icon' => 'DashboardOutlined', 'order' => 1],
+            ['navigation_name' => 'Inventory',  'navigation_url' => 'inventory',    'navigation_icon' => 'LayersOutlined',    'order' => 2],
+            ['navigation_name' => 'Members',    'navigation_url' => 'users',        'navigation_icon' => 'Groups2Outlined',   'order' => 3],
+            ['navigation_name' => 'Profile',    'navigation_url' => 'profile',      'navigation_icon' => 'Person2Outlined',   'order' => 4],
+            ['navigation_name' => 'System Logs','navigation_url' => 'audit-trails', 'navigation_icon' => 'DevicesOutlined',   'order' => 5],
         ];
 
         foreach ($navItems as $item) {
